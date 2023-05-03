@@ -13,8 +13,6 @@ func main() {
 
 	b := bayou.MakeCoordinator()
 
-
-    //fmt.Println(b)
     n := 0
     for  {
         fmt.Println("waiting", n)

@@ -5,7 +5,8 @@ import "log"
 import "net/rpc"
 import "sync"
 
-
+var stop bool = false
+var stopMutex = sync.Mutex{}
 
 type Server struct {
     sID int
@@ -17,7 +18,7 @@ type Server struct {
     cState appState
     aState appState
 }
-
+var initAppState appState = appState{playerState{0, 5, false, time.Time{}}, playerState{0, 5, false, time.Time{}}}
 func MakeServer() *Server {
     s := Server{
         -1,
@@ -25,8 +26,8 @@ func MakeServer() *Server {
         make([]Message, 0),
         sync.Mutex{},
         sync.WaitGroup{},
-        appState{playerState{0, 5, false, time.Time{}}, playerState{0, 1, false, time.Time{}}},
-        appState{playerState{0, 5, false, time.Time{}}, playerState{0, 1, false, time.Time{}}}}
+        initAppState,
+        initAppState}
     s.Wg.Add(1)
     s.sID = CallReg()
     return &s
@@ -54,6 +55,18 @@ func (s *Server) PeriodicCommits(){
                         break
                     }
                 }
+            }
+            if s.cState.self.hp <= 0 {
+                stopMutex.Lock()
+                stop = true
+                stopMutex.Unlock()
+                break
+            }
+            if s.cState.oppo.hp <= 0 {
+                stopMutex.Lock()
+                stop = true
+                stopMutex.Unlock()
+                break
             }
 
 

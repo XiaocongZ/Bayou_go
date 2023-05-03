@@ -15,6 +15,7 @@ import (
 
 const (
     lineLength = 5
+    
 )
 
 type appState struct {
@@ -75,11 +76,16 @@ func (s *Server)ListenKeystroke() {
     if err != nil {
         log.Fatalln("setting stdin to raw:", err)
     }
+
+    defer s.Wg.Done()
+
     defer func() {
         if err := term.Restore(0, state); err != nil {
             log.Println("warning, failed to restore terminal:", err)
         }
     }()
+
+
 
     in := bufio.NewReader(os.Stdin)
     for {
@@ -100,8 +106,14 @@ func (s *Server)ListenKeystroke() {
         if r == 'q' {
             break
         }
+        stopMutex.Lock()
+        if stop {
+            stopMutex.Unlock()
+            break
+        }
+        stopMutex.Unlock()
     }
-    s.Wg.Done()
+
 }
 
 
