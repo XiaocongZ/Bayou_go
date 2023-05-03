@@ -10,6 +10,10 @@ import "os"
 import "strconv"
 import "time"
 
+func remove[T any](slice []T, s int) []T {
+    return append(slice[:s], slice[s+1:]...)
+}
+
 //
 // example to show how to declare the arguments
 // and reply for an RPC.
@@ -43,7 +47,7 @@ type Stamp struct {
 }
 
 type Operation struct {
-
+	Str string
 }
 
 type Message struct {

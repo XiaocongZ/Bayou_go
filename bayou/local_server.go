@@ -3,26 +3,81 @@ import "fmt"
 import "time"
 import "log"
 import "net/rpc"
+import "sync"
+
 
 
 type Server struct {
+    sID int
     commits []Message
+    accepts []Message
+    acMutex sync.Mutex
+    Wg sync.WaitGroup
+    //aState appState
+    cState appState
+    aState appState
 }
 
 func MakeServer() *Server {
     s := Server{
-        make([]Message, 0)}
+        -1,
+        make([]Message, 0),
+        make([]Message, 0),
+        sync.Mutex{},
+        sync.WaitGroup{},
+        appState{playerState{0, 5, false, time.Time{}}, playerState{0, 1, false, time.Time{}}},
+        appState{playerState{0, 5, false, time.Time{}}, playerState{0, 1, false, time.Time{}}}}
+    s.Wg.Add(1)
+    s.sID = CallReg()
     return &s
 }
 
 func (s *Server) PeriodicCommits(){
     for{
+        s.acMutex.Lock()
+
+
         n := len(s.commits)
         newCommits := CallRecvCommits(n)
         s.commits = append(s.commits, newCommits...)
-        fmt.Println(len(s.commits), s.commits)
-        time.Sleep(time.Second*2)
+
+        //add to commits, delete from accepts
+
+        for _, cm := range newCommits{
+            s.cState = nextState(s.cState, cm, cm.Stp.SID == s.sID)
+            //for now only same id will be in accepts
+            if cm.Stp.SID == s.sID {
+                //delete in c.aState
+                for i, am := range s.accepts{
+                    if cm.Stp.AStp != am.Stp.AStp || cm.Stp.SID != am.Stp.SID{
+                        s.accepts = remove(s.accepts, i)
+                        break
+                    }
+                }
+            }
+
+
+        }
+        fmt.Println("newAccepts", s.accepts)
+        s.aState = s.cState
+        for _, m := range s.accepts{
+            s.aState = nextState(s.aState, m, m.Stp.SID == s.sID)
+        }
+        fmt.Println("\rPeriodic")
+        render(s.aState)
+        s.acMutex.Unlock()
+
+        time.Sleep(time.Second*3)
     }
+}
+
+func (s *Server) InstantAccepts(m Message){
+    s.acMutex.Lock()
+    defer s.acMutex.Unlock()
+    s.accepts = append(s.accepts, m)
+    s.aState = nextState(s.aState, m, m.Stp.SID == s.sID)
+    fmt.Println("\rInstantAccept")
+    render(s.aState)
 }
 //
 // example function to show how to make an RPC call to the coordinator.
@@ -55,27 +110,29 @@ func CallExample() {
 }
 
 
-func CallReg() {
-    reply := RegServerReply{}
+func CallReg() int {
+    //reply := RegServerReply{}
+    var reply int
     ok := call("Coordinator.RegServer", NilArgs{}, &reply)
     if ok {
 		// reply.Y should be 100.
-		fmt.Println("CallReg: ")
-		fmt.Println(reply)
+		return reply
 	} else {
 		fmt.Printf("call failed!\n")
+        return -1
 	}
 }
 
-func CallMessage() {
+func (s *Server) CallMessage(op Operation) {
     reply := Message{}
-    stp := Stamp{time.Now(),time.Time{},0}
-    args := Message{stp,Operation{}}
+    stp := Stamp{time.Now(),time.Time{},s.sID}
+    args := Message{stp,op}
+    s.InstantAccepts(args)
     ok := call("Coordinator.Message", &args, &reply)
     if ok {
 		// reply.Y should be 100.
-		fmt.Println("CallMessage: ")
-		fmt.Println("send", args, "\nrecv", reply)
+		//fmt.Println("CallMessage: ")
+		//fmt.Println("send", args, "\nrecv", reply)
 	} else {
 		fmt.Printf("call failed!\n")
 	}

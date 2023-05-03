@@ -5,7 +5,7 @@ import "net"
 import "os"
 import "net/rpc"
 import "net/http"
-//import "fmt"
+import "fmt"
 import "time"
 import "sync"
 
@@ -14,6 +14,10 @@ type Coordinator struct {
     smutex sync.Mutex //mutex for writing sID
     messageChan chan Message // buffered channel for Message, as a concurrent FIFO queue
     commits []Message
+}
+
+func (c *Coordinator) PrintCommits(){
+    fmt.Println(len(c.commits), c.commits)
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -30,10 +34,10 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 }
 
 
-func (c *Coordinator) RegServer(args *ExampleArgs, reply *RegServerReply) error {
+func (c *Coordinator) RegServer(args *ExampleArgs, reply *int) error {
 
     c.smutex.Lock()
-	reply.SID = c.sID
+	*reply = c.sID
     c.sID = c.sID + 1
     c.smutex.Unlock()
 	return nil
@@ -43,6 +47,7 @@ func (c *Coordinator) Message(args *Message, reply *Message) error {
     time.Sleep(time.Second*2)
     //(*args).Stp.CStp = time.Now()
     c.messageChan <- *args
+    fmt.Println(*args)
     *reply = *args
     return nil
 }
@@ -60,8 +65,6 @@ func (c *Coordinator) handleMessage(){
         c.commits = append(c.commits, m)
     }
 }
-
-
 
 
 //

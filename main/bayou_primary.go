@@ -2,10 +2,8 @@ package main
 
 
 import "Bayou/bayou"
-import (
-    "os/exec"
-    "os"
-)
+import "Bayou/tui"
+
 import "fmt"
 import "time"
 
@@ -16,14 +14,13 @@ func main() {
 	b := bayou.MakeCoordinator()
 
 
-    fmt.Println(b)
+    //fmt.Println(b)
     n := 0
     for  {
         fmt.Println("waiting", n)
-        time.Sleep(time.Second*2)
-        cmd := exec.Command("clear")
-        cmd.Stdout = os.Stdout
-        cmd.Run()
+		b.PrintCommits()
+        time.Sleep(time.Second*5)
+        tui.Clear()
         n = n + 1
     }
 }
