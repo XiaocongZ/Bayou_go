@@ -15,7 +15,7 @@ import (
 
 const (
     lineLength = 5
-    
+
 )
 
 type appState struct {

@@ -43,7 +43,7 @@ func (s *Server) PeriodicCommits(){
         s.commits = append(s.commits, newCommits...)
 
         //add to commits, delete from accepts
-
+        /*
         for _, cm := range newCommits{
             s.cState = nextState(s.cState, cm, cm.Stp.SID == s.sID)
             //for now only same id will be in accepts
@@ -68,10 +68,15 @@ func (s *Server) PeriodicCommits(){
                 stopMutex.Unlock()
                 break
             }
-
-
         }
+        */
+        s.cState, s.accepts = dependencyCheckMerge(s.sID, s.cState, newCommits, s.accepts)
+
+
+
+
         fmt.Println("newAccepts", s.accepts)
+        //apply left accepts on top of cState to get aState
         s.aState = s.cState
         for _, m := range s.accepts{
             s.aState = nextState(s.aState, m, m.Stp.SID == s.sID)
@@ -84,6 +89,36 @@ func (s *Server) PeriodicCommits(){
     }
 }
 
+func dependencyCheckMerge(sID int, cState appState, newCommits, accepts []Message) (appState, []Message) {
+    for _, cm := range newCommits{
+        cState = nextState(cState, cm, cm.Stp.SID == sID)
+        //for now only same id will be in accepts
+        if cm.Stp.SID == sID {
+            //delete in c.aState
+            for i, am := range accepts {
+                if cm.Stp.AStp == am.Stp.AStp || cm.Stp.SID == am.Stp.SID{
+                    accepts = remove(accepts, i)
+                    break
+                }
+            }
+        }
+        //check if game ends
+        if cState.self.hp <= 0 {
+            stopMutex.Lock()
+            stop = true
+            stopMutex.Unlock()
+            break
+        }
+        if cState.oppo.hp <= 0 {
+            stopMutex.Lock()
+            stop = true
+            stopMutex.Unlock()
+            break
+        }
+    }
+    return cState, accepts
+}
+
 func (s *Server) InstantAccepts(m Message){
     s.acMutex.Lock()
     defer s.acMutex.Unlock()
@@ -92,35 +127,7 @@ func (s *Server) InstantAccepts(m Message){
     fmt.Println("\rInstantAccept")
     render(s.aState)
 }
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
 
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.Example", &args, &reply)
-	if ok {
-		// reply.Y should be 100.
-		fmt.Println("reply.Y: ")
-		fmt.Println(reply.Y)
-	} else {
-		fmt.Printf("call failed!\n")
-	}
-}
 
 
 func CallReg() int {
@@ -162,7 +169,35 @@ func CallRecvCommits(n int) []Message{
         return nil
 	}
 }
+//
+// example function to show how to make an RPC call to the coordinator.
+//
+// the RPC argument and reply types are defined in rpc.go.
+//
+func CallExample() {
 
+	// declare an argument structure.
+	args := ExampleArgs{}
+
+	// fill in the argument(s).
+	args.X = 99
+
+	// declare a reply structure.
+	reply := ExampleReply{}
+
+	// send the RPC request, wait for the reply.
+	// the "Coordinator.Example" tells the
+	// receiving server that we'd like to call
+	// the Example() method of struct Coordinator.
+	ok := call("Coordinator.Example", &args, &reply)
+	if ok {
+		// reply.Y should be 100.
+		fmt.Println("reply.Y: ")
+		fmt.Println(reply.Y)
+	} else {
+		fmt.Printf("call failed!\n")
+	}
+}
 //
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
